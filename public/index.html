@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Arıza Takip" />
+<meta name="description" content="Okul arıza bildirim ve takip uygulaması" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<title>Fatih Arıza Takip</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --acc:#38bdf8; --ok:#22c55e; --bad:#ef4444; --txt:#f1f5f9; --mut:#94a3b8; }
+  * { box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  body { margin:0; background:var(--bg); color:var(--txt); min-height:100vh; }
+  header { padding:16px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; position:sticky; top:0; background:var(--bg); z-index:10; }
+  header h1 { margin:0; font-size:18px; }
+  main { max-width:640px; margin:0 auto; padding:20px 16px 60px; }
+  .card { background:var(--card); border:1px solid #334155; border-radius:14px; padding:18px; margin-bottom:14px; }
+  .muted { color:var(--mut); font-size:14px; }
+  h2 { margin:0 0 8px; font-size:20px; }
+  label { display:block; font-size:13px; color:var(--mut); margin:12px 0 4px; }
+  input, select, textarea { width:100%; padding:12px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:var(--txt); font-size:15px; }
+  textarea { min-height:90px; resize:vertical; }
+  button { width:100%; padding:13px; border:0; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; margin-top:12px; }
+  .btn-p { background:var(--acc); color:#082f49; }
+  .btn-g { background:#334155; color:var(--txt); }
+  .btn-danger { background:var(--bad); color:#fff; width:auto; padding:8px 14px; margin-top:8px; }
+  .btn-sm { width:auto; padding:8px 12px; font-size:13px; margin-top:8px; }
+  .row { display:flex; gap:8px; } .row button { flex:1; }
+  .head-row { display:flex; align-items:center; gap:8px; }
+  .head-row h2 { flex:1; margin:0; }
+  .head-row button { flex:0 0 auto; width:auto; margin-top:0; }
+  #adminList { margin-top:3px; }
+  .hidden { display:none !important; }
+  .badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+  .b-teacher { background:#164e63; color:#67e8f9; } .b-admin { background:#14532d; color:#86efac; }
+  .st { display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700; margin-left:6px; }
+  .st-bekliyor { background:#451a03; color:#fdba74; }
+  .st-inceleniyor { background:#082f49; color:#7dd3fc; }
+  .st-cozuldu { background:#14532d; color:#86efac; }
+  .status-row { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+  .status-row button { width:auto; flex:1; padding:8px 6px; font-size:12px; margin-top:0; min-width:90px; }
+  .st-active { outline:2px solid #fff; }
+  .fault { border-left:4px solid var(--acc); }
+  .fault b.cat { color:var(--acc); }
+  .code-box { background:#0f172a; border:1px dashed var(--acc); border-radius:10px; padding:12px; text-align:center; margin:8px 0; }
+  .code-box span { font-size:26px; letter-spacing:4px; font-weight:800; color:var(--acc); }
+  #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#020617; border:1px solid #334155; padding:12px 18px; border-radius:10px; display:none; max-width:90%; z-index:99; }
+  .top-actions { display:flex; gap:8px; align-items:center; }
+  .top-actions button { width:auto; margin:0; padding:8px 12px; font-size:13px; }
+  :fullscreen { background:var(--bg); }
+  .stat { display:flex; gap:10px; } .stat div { flex:1; background:#0f172a; border-radius:10px; padding:10px; text-align:center; }
+  .stat div b { font-size:22px; display:block; }
+  .date-row { display:flex; gap:8px; } .date-row div { flex:1; }
+  table.rep { width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+  table.rep th, table.rep td { border:1px solid #334155; padding:8px 6px; text-align:left; vertical-align:top; }
+  table.rep th { background:#0f172a; }
+  @media print {
+    header, #v-home, #v-create, #v-join-teacher, #v-join-admin,
+    #v-home-teacher, #v-fault-new, #v-faults-mine, #v-home-admin, #v-admin-faults,
+    #v-report .no-print { display:none !important; }
+    body { background:#fff; color:#000; }
+    #v-report { display:block !important; }
+    table.rep th, table.rep td { border:1px solid #000; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛠️ Fatih Arıza Takip</h1>
+  <div class="top-actions">
+    <span id="schoolBadge" class="muted"></span>
+    <button id="btnFS" class="btn-g" onclick="toggleFS()" title="Tam ekran">⛶</button>
+    <button id="btnLogout" class="btn-g hidden" onclick="logout()">Çıkış</button>
+  </div>
+</header>
+<main>
+  <!-- ANA SAYFA -->
+  <div id="v-home">
+    <div class="card">
+      <h2>Hoş geldiniz</h2>
+      <p class="muted">Sorumlu okulu kaydeder, öğretmenlere katılım kodunu verir. Öğretmen arıza girer, sorumlu görüp çözünce siler.</p>
+      <button class="btn-p" onclick="show('v-create')">🏫 Sorumlu: Okul Oluştur</button>
+      <div class="row">
+        <button class="btn-g" onclick="show('v-join-teacher')">👩‍🏫 Öğretmen Girişi</button>
+        <button class="btn-g" onclick="show('v-join-admin')">🧑‍💼 Sorumlu Girişi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OKUL OLUŞTUR -->
+  <div id="v-create" class="hidden">
+    <div class="card">
+      <h2>Okul Oluştur</h2>
+      <p class="muted">Sorumlu olarak okul adını yazın. Size 2 kod verilecek.</p>
+      <label>Okul Adı</label>
+      <input id="schoolName" placeholder="Örn: Fatih İlkokulu" />
+      <button class="btn-p" onclick="createSchool()">Oluştur</button>
+      <button class="btn-g" onclick="show('v-home')">← Geri</button>
+    </div>
+    <div id="createResult" class="card hidden">
+      <h2>✅ Okul açıldı!</h2>
+      <p class="muted">Öğretmen katılım kodu (öğretmenlere verin):</p>
+      <div class="code-box"><span id="outTeacherCode"></span></div>
+      <button class="btn-sm btn-g" onclick="copyText('outTeacherCode')">Kopyala</button>
+      <p class="muted" style="margin-top:12px">Sorumlu yönetici kodunuz (kimseyle paylaşmayın, giriş için):</p>
+      <div class="code-box"><span id="outAdminCode"></span></div>
+      <button class="btn-sm btn-g" onclick="copyText('outAdminCode')">Kopyala</button>
+      <button class="btn-p" onclick="enterAdminAfterCreate()">Sorumlu Paneline Gir →</button>
+    </div>
+  </div>
+
+  <!-- ÖĞRETMEN GİRİŞ -->
+  <div id="v-join-teacher" class="hidden">
+    <div class="card">
+      <h2>Öğretmen Girişi</h2>
+      <p class="muted">Sorumludan aldığınız <b>öğretmen katılım kodunu</b> girin.</p>
+      <label>Katılım Kodu</label>
+      <input id="teacherCode" placeholder="Örn: A3K9P2" style="text-transform:uppercase" />
+      <label>Ad Soyad</label>
+      <input id="teacherName" placeholder="Adınız Soyadınız" />
+      <button class="btn-p" onclick="join('teacher')">Okula Bağlan</button>
+      <button class="btn-g" onclick="show('v-home')">← Geri</button>
+    </div>
+  </div>
+
+  <!-- SORUMLU GİRİŞ -->
+  <div id="v-join-admin" class="hidden">
+    <div class="card">
+      <h2>Sorumlu Girişi</h2>
+      <p class="muted">Okul oluştururken verilen <b>yönetici kodunu</b> girin.</p>
+      <label>Yönetici Kodu</label>
+      <input id="adminCode" placeholder="Örn: X7Q2M8" style="text-transform:uppercase" />
+      <button class="btn-p" onclick="join('admin')">Panele Gir</button>
+      <button class="btn-g" onclick="show('v-home')">← Geri</button>
+    </div>
+  </div>
+
+  <!-- ÖĞRETMEN ANA EKRAN -->
+  <div id="v-home-teacher" class="hidden">
+    <div class="card">
+      <h2>🏠 Ana Ekran <span class="badge b-teacher">ÖĞRETMEN</span></h2>
+      <p class="muted" id="tSchool"></p>
+      <button class="btn-p" onclick="goNewFault()">➕ Arıza Bildir</button>
+      <button class="btn-g" onclick="goMyFaults()">📋 Arızalarım (<span id="tCount">0</span>)</button>
+    </div>
+  </div>
+
+  <!-- ARIZA BİLDİR (ayrı sayfa) -->
+  <div id="v-fault-new" class="hidden">
+    <div class="card">
+      <div class="head-row">
+        <h2>Arıza Bildir</h2>
+        <button class="btn-sm btn-g" onclick="goHome()">← Ana Ekran</button>
+      </div>
+      <label>Derslik / Konum</label>
+      <input id="fLocation" placeholder="Örn: 5-A Sınıfı, Kat 2" />
+      <label>Kategori</label>
+      <select id="fCategory">
+        <option>Akıllı Tahta</option>
+        <option>Bilgisayar</option>
+        <option>İnternet / Ağ</option>
+        <option>Yazıcı</option>
+        <option>Projeksiyon</option>
+        <option>Elektrik</option>
+        <option>Diğer</option>
+      </select>
+      <label>Arıza Açıklaması</label>
+      <textarea id="fDesc" placeholder="Sorunu kısaca anlatın..."></textarea>
+      <button class="btn-p" onclick="sendFault()">Arızayı Gönder</button>
+    </div>
+  </div>
+
+  <!-- ARIZALARIM (ayrı sayfa) -->
+  <div id="v-faults-mine" class="hidden">
+    <div class="card">
+      <div class="head-row">
+        <h2>Arızalarım</h2>
+        <button class="btn-sm btn-g" onclick="loadFaults()">↻</button>
+        <button class="btn-sm btn-g" onclick="goHome()">← Ana Ekran</button>
+      </div>
+      <p class="muted">Sadece kendi bildirdiğiniz arızalar görünür. Diğer öğretmenler göremez.</p>
+      <div id="teacherList"></div>
+    </div>
+  </div>
+
+  <!-- SORUMLU ANA EKRAN -->
+  <div id="v-home-admin" class="hidden">
+    <div class="card">
+      <h2>🏠 Ana Ekran <span class="badge b-admin">SORUMLU</span></h2>
+      <p class="muted" id="aSchool"></p>
+      <div class="stat">
+        <div><b id="statTotal">0</b><span class="muted">Toplam</span></div>
+        <div><b id="statBekliyor">0</b><span class="muted">Bekliyor</span></div>
+        <div><b id="statInceleniyor">0</b><span class="muted">İnceleniyor</span></div>
+        <div><b id="statCozuldu">0</b><span class="muted">Çözüldü</span></div>
+      </div>
+      <button class="btn-p" onclick="goAdminFaults()">🛠️ Arıza Paneli</button>
+      <button class="btn-g" onclick="showReport()">📊 İşlem Raporları</button>
+      <p class="muted" style="margin-top:12px">Öğretmen katılım kodu (paylaşın):</p>
+      <div class="code-box"><span id="aTeacherCode" style="font-size:20px"></span></div>
+      <button class="btn-sm btn-g" onclick="copyText('aTeacherCode')">Kopyala</button>
+    </div>
+  </div>
+
+  <!-- ARIZA PANELİ (ayrı sayfa, sadece sorumlu) -->
+  <div id="v-admin-faults" class="hidden">
+    <div class="card">
+      <div class="head-row">
+        <h2>Tüm Arızalar</h2>
+        <button class="btn-sm btn-g" onclick="loadFaults()">↻ Yenile</button>
+        <button class="btn-sm btn-g" onclick="goHome()">← Ana Ekran</button>
+      </div>
+      <div id="adminList"></div>
+    </div>
+  </div>
+
+  <!-- İŞLEM RAPORLARI (ayrı sayfa, sadece sorumlu) -->
+  <div id="v-report" class="hidden">
+    <div class="card">
+      <h2>📊 İşlem Raporları <span class="badge b-admin">SORUMLU</span></h2>
+      <p class="muted" id="repSchool"></p>
+      <p class="muted no-print">Tarih aralığındaki tüm işlemler (oluşturma, durum değişikliği, silme). Makama sunmak için yazdırın veya CSV indirin.</p>
+      <div class="date-row no-print">
+        <div><label>Başlangıç</label><input type="date" id="repFrom" /></div>
+        <div><label>Bitiş</label><input type="date" id="repTo" /></div>
+      </div>
+      <div class="row no-print">
+        <button class="btn-p" onclick="fetchReport()">Raporu Getir</button>
+      </div>
+      <div class="row no-print">
+        <button class="btn-g" onclick="printReport()">🖨 Yazdır</button>
+        <button class="btn-g" onclick="downloadCSV()">⬇ CSV İndir</button>
+      </div>
+      <div id="repOut"><p class="muted">Henüz rapor alınmadı.</p></div>
+      <button class="btn-g no-print" onclick="goHome()">← Ana Ekran</button>
+    </div>
+  </div>
+</main>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let session = JSON.parse(localStorage.getItem("fatih_ariza_session") || "null");
+let pollTimer = null;
+let lastCreated = null;
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 2600);
+}
+const VIEWS = ["v-home","v-create","v-join-teacher","v-join-admin","v-home-teacher","v-fault-new","v-faults-mine","v-home-admin","v-admin-faults","v-report"];
+function show(id) {
+  VIEWS.forEach(v => $(v).classList.add("hidden"));
+  $(id).classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+function nav(id, hash) {
+  show(id);
+  try { history.replaceState(null, "", hash); } catch (e) {}
+}
+// Her sayfa ana ekrandan: role göre ana ekran
+function goHome() {
+  if (!session) return nav("v-home", "#/");
+  if (session.role === "admin") {
+    $("aSchool").textContent = session.schoolName;
+    if ($("aTeacherCode")) $("aTeacherCode").textContent = session.teacherCode || "(Öğretmen kodunu okul oluşturma ekranından not alın)";
+    nav("v-home-admin", "#/");
+  } else {
+    $("tSchool").textContent = session.schoolName + " • " + (session.teacherName || "");
+    nav("v-home-teacher", "#/");
+  }
+  loadFaults();
+}
+function goNewFault() {
+  if (!session || session.role !== "teacher") return toast("Öğretmen girişi gerekli.");
+  nav("v-fault-new", "#/bildir");
+}
+function goMyFaults() {
+  if (!session || session.role !== "teacher") return toast("Öğretmen girişi gerekli.");
+  nav("v-faults-mine", "#/arizalarim");
+  loadFaults();
+}
+function goAdminFaults() {
+  if (!session || session.role !== "admin") return toast("Sadece sorumlu görebilir.");
+  nav("v-admin-faults", "#/panel");
+  loadFaults();
+}
+function showReport() {
+  if (!session || session.role !== "admin") return toast("Sadece sorumlu rapor alabilir.");
+  $("repSchool").textContent = session.schoolName;
+  try { defaultRepDates(); } catch (e) {}
+  nav("v-report", "#/rapor");
+}
+function backToAdmin() { goHome(); }
+function copyText(elId) {
+  const txt = $(elId).textContent.trim();
+  navigator.clipboard.writeText(txt).then(() => toast("Kopyalandı: " + txt));
+}
+function saveSession(s) { session = s; localStorage.setItem("fatih_ariza_session", JSON.stringify(s)); renderAuth(); }
+function logout() { localStorage.removeItem("fatih_ariza_session"); session = null; clearInterval(pollTimer); renderAuth(); nav("v-home", "#/"); }
+function renderAuth() {
+  $("btnLogout").classList.toggle("hidden", !session);
+  $("schoolBadge").textContent = session ? session.schoolName + (session.role === "admin" ? " (Sorumlu)" : " (Öğretmen)") : "";
+}
+function fmtTime(ts) { return new Date(ts).toLocaleString("tr-TR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }); }
+function esc(s) { return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function statusBadge(s) {
+  const key = (s || "bekliyor").toLowerCase();
+  const cls = key === "inceleniyor" ? "st-inceleniyor" : key === "çözüldü" ? "st-cozuldu" : "st-bekliyor";
+  const label = key === "inceleniyor" ? "İnceleniyor" : key === "çözüldü" ? "Çözüldü" : "Bekliyor";
+  return `<span class="st ${cls}">${label}</span>`;
+}
+function ensureToken() {
+  if (session && session.role === "teacher" && !session.teacherToken) {
+    session.teacherToken = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+    localStorage.setItem("fatih_ariza_session", JSON.stringify(session));
+  }
+}
+
+async function createSchool() {
+  const name = $("schoolName").value.trim();
+  if (name.length < 2) return toast("Okul adı yazın.");
+  const r = await fetch("/api/schools", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ name }) });
+  const d = await r.json();
+  if (!r.ok) return toast(d.error || "Hata oluştu.");
+  $("outTeacherCode").textContent = d.school.teacherCode;
+  $("outAdminCode").textContent = d.school.adminCode;
+  $("createResult").classList.remove("hidden");
+  lastCreated = d.school;
+  toast("Okul oluşturuldu!");
+}
+function enterAdminAfterCreate() {
+  if (!lastCreated) return;
+  saveSession({ schoolId: lastCreated.id, schoolName: lastCreated.name, code: lastCreated.adminCode, role: "admin", teacherCode: lastCreated.teacherCode });
+  openDash();
+}
+async function join(expectedRole) {
+  const code = (expectedRole === "teacher" ? $("teacherCode").value : $("adminCode").value).trim().toUpperCase();
+  if (!code) return toast("Kod girin.");
+  const r = await fetch("/api/join", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ code }) });
+  const d = await r.json();
+  if (!r.ok) return toast(d.error || "Kod bulunamadı.");
+  if (expectedRole === "admin" && d.role !== "admin") return toast("Bu kod öğretmen kodu. Yönetici kodunu girin.");
+  if (expectedRole === "teacher" && d.role !== "teacher") return toast("Bu kod yönetici kodu. Öğretmen kodunu girin.");
+  let teacherName = "";
+  if (d.role === "teacher") {
+    teacherName = $("teacherName").value.trim() || (session && session.teacherName) || "";
+    if (teacherName.length < 2) return toast("Ad Soyad yazın.");
+  }
+  // öğretmen kodunu sorumlu panelinde göstermek için teacherCode'u bul: eğer admin girişi ise kod admin kodudur, teacherCode bilinmiyor -> join cevabında yok. Admin panelinde kodu göstermek için ayrı saklamıyoruz; session'da code var ama liste için yeterli. Öğretmen kodunu göstermek için: eğer admin ise teacherCode'u ayrıca istemiyoruz; basitlik için admin panelinde kodu göstermeyi session.teacherCode varsa yaparız, yoksa gizleriz.
+  const teacherToken = d.role === "teacher"
+    ? ((session && session.role === "teacher" && session.schoolId === d.school.id && session.teacherToken) || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)))
+    : "";
+  saveSession({ schoolId: d.school.id, schoolName: d.school.name, code: d.code, role: d.role, teacherName, teacherToken, teacherCode: d.role === "teacher" ? d.code : (d.teacherCode || (lastCreated && lastCreated.id === d.school.id ? lastCreated.teacherCode : "")) });
+  openDash();
+}
+function openDash() {
+  if (!session) return nav("v-home", "#/");
+  // derin bağlantı: hash'e göre ilgili sayfaya git
+  const h = location.hash || "";
+  if (session.role === "admin") {
+    $("aSchool").textContent = session.schoolName;
+    if ($("aTeacherCode")) $("aTeacherCode").textContent = session.teacherCode || "(Öğretmen kodunu okul oluşturma ekranından not alın)";
+    if (h === "#/rapor") { showReport(); }
+    else if (h === "#/panel") { goAdminFaults(); }
+    else { nav("v-home-admin", "#/"); }
+  } else {
+    $("tSchool").textContent = session.schoolName + " • " + (session.teacherName || "");
+    if (h === "#/bildir") { goNewFault(); }
+    else if (h === "#/arizalarim") { goMyFaults(); }
+    else { nav("v-home-teacher", "#/"); }
+  }
+  loadFaults();
+  clearInterval(pollTimer);
+  pollTimer = setInterval(loadFaults, 5000);
+}
+async function sendFault() {
+  ensureToken();
+  const payload = {
+    schoolId: session.schoolId, code: session.code,
+    teacherName: session.teacherName,
+    teacherToken: session.teacherToken || "",
+    location: $("fLocation").value.trim(),
+    category: $("fCategory").value,
+    description: $("fDesc").value.trim()
+  };
+  const r = await fetch("/api/faults", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+  const d = await r.json();
+  if (!r.ok) return toast(d.error || "Gönderilemedi.");
+  $("fLocation").value = ""; $("fDesc").value = "";
+  toast("Arıza bildirildi ✅");
+  goMyFaults();
+}
+async function loadFaults() {
+  if (!session) return;
+  ensureToken();
+  const q = `/api/faults?schoolId=${encodeURIComponent(session.schoolId)}&code=${encodeURIComponent(session.code)}&teacherToken=${encodeURIComponent(session.teacherToken || "")}&teacherName=${encodeURIComponent(session.teacherName || "")}`;
+  const r = await fetch(q);
+  const d = await r.json();
+  if (!r.ok) { if (r.status === 403) { toast("Yetki hatası, tekrar giriş yapın."); logout(); } return; }
+  const list = d.faults || [];
+  if (d.teacherCode && session.role === "admin") {
+    session.teacherCode = d.teacherCode;
+    localStorage.setItem("fatih_ariza_session", JSON.stringify(session));
+    $("aTeacherCode").textContent = d.teacherCode;
+  }
+  if (session.role === "teacher") {
+    $("tCount").textContent = list.length;
+    $("teacherList").innerHTML = list.length ? list.map(f => `
+      <div class="card fault"><b class="cat">${esc(f.category)}</b> • ${esc(f.location)} ${statusBadge(f.status)}
+      <div class="muted">${fmtTime(f.createdAt)}</div>
+      <div style="margin-top:6px">${esc(f.description)}</div></div>`).join("")
+      : `<p class="muted">Henüz arızanız yok. İlk kaydı oluşturun 👆</p>`;
+  } else {
+    $("statTotal").textContent = list.length;
+    $("statBekliyor").textContent = list.filter(f => (f.status || "bekliyor") === "bekliyor").length;
+    $("statInceleniyor").textContent = list.filter(f => f.status === "inceleniyor").length;
+    $("statCozuldu").textContent = list.filter(f => f.status === "çözüldü").length;
+    $("adminList").innerHTML = list.length ? list.map(f => `
+      <div class="card fault"><b class="cat">${esc(f.category)}</b> • ${esc(f.location)} ${statusBadge(f.status)}
+      <div class="muted">${esc(f.teacherName)} • ${fmtTime(f.createdAt)}</div>
+      <div style="margin-top:6px">${esc(f.description)}</div>
+      <div class="status-row">
+        <button class="btn-g ${f.status === "bekliyor" || !f.status ? "st-active" : ""}" onclick="setStatus('${f.id}','bekliyor')">Bekliyor</button>
+        <button class="btn-g ${f.status === "inceleniyor" ? "st-active" : ""}" onclick="setStatus('${f.id}','inceleniyor')">İnceleniyor</button>
+        <button class="btn-g ${f.status === "çözüldü" ? "st-active" : ""}" onclick="setStatus('${f.id}','çözüldü')">Çözüldü</button>
+      </div>
+      <button class="btn-danger" onclick="delFault('${f.id}')">🗑 Sil (herkesten silinir)</button></div>`).join("")
+      : `<p class="muted">Bekleyen arıza yok. 🎉</p>`;
+  }
+}
+async function setStatus(id, status) {
+  const r = await fetch(`/api/faults/${id}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ schoolId: session.schoolId, code: session.code, status }) });
+  const d = await r.json();
+  if (!r.ok) return toast(d.error || "Güncellenemedi.");
+  toast("Durum: " + status);
+  loadFaults();
+}
+async function delFault(id) {
+  if (!confirm("Bu arıza herkesten silinsin mi?")) return;
+  const r = await fetch(`/api/faults/${id}?schoolId=${encodeURIComponent(session.schoolId)}&code=${encodeURIComponent(session.code)}`, { method:"DELETE" });
+  const d = await r.json();
+  if (!r.ok) return toast(d.error || "Silinemedi.");
+  toast("Arıza silindi.");
+  loadFaults();
+}
+let lastReport = null;
+function actionLabel(a) {
+  return { "oluşturuldu":"Arıza oluşturuldu", "bekliyor":"Bekliyor olarak işaretlendi", "inceleniyor":"İnceleniyor olarak işaretlendi", "çözüldü":"Çözüldü olarak işaretlendi", "silindi":"Silindi" }[a] || a;
+}
+function fmtDateTime(ts) { return new Date(ts).toLocaleString("tr-TR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" }); }
+function defaultRepDates() {
+  const to = new Date(), from = new Date(Date.now() - 29 * 86400000);
+  const iso = d => d.toISOString().slice(0, 10);
+  if (!$("repFrom").value) $("repFrom").value = iso(from);
+  if (!$("repTo").value) $("repTo").value = iso(to);
+}
+async function fetchReport() {
+  defaultRepDates();
+  const from = $("repFrom").value, to = $("repTo").value;
+  const r = await fetch(`/api/report?schoolId=${encodeURIComponent(session.schoolId)}&code=${encodeURIComponent(session.code)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  const d = await r.json();
+  if (!r.ok) return toast(d.error || "Rapor alınamadı.");
+  lastReport = d;
+  const sum = Object.entries(d.summary || {}).map(([k, v]) => `${actionLabel(k)}: <b>${v}</b>`).join(" • ") || "İşlem yok";
+  $("repOut").innerHTML = `
+    <p><b>${esc(d.school)}</b> • ${esc(d.from)} → ${esc(d.to)} • Toplam <b>${d.total}</b> işlem</p>
+    <p class="muted">${sum}</p>
+    ${d.items.length ? `<table class="rep"><tr><th>Tarih</th><th>İşlem</th><th>Yapan</th><th>Detay</th></tr>${d.items.map(it => `
+      <tr><td>${fmtDateTime(it.createdAt)}</td><td>${esc(actionLabel(it.action))}</td><td>${esc(it.actorName || (it.actorRole === "admin" ? "Sorumlu" : "Öğretmen"))}</td><td>${esc(it.detail || "")}</td></tr>`).join("")}</table>`
+    : `<p class="muted">Bu aralıkta işlem yok.</p>`}`;
+  toast("Rapor hazır: " + d.total + " işlem");
+}
+function downloadCSV() {
+  if (!lastReport || !lastReport.items.length) return toast("Önce rapor alın.");
+  const esc2 = v => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+  const rows = [["Tarih", "Okul", "Islem", "Yapan", "Rol", "Detay"]];
+  for (const it of lastReport.items) rows.push([fmtDateTime(it.createdAt), lastReport.school, actionLabel(it.action), it.actorName || "", it.actorRole || "", it.detail || ""]);
+  const csv = "﻿" + rows.map(r => r.map(esc2).join(";")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = `ariza-raporu-${lastReport.from}-${lastReport.to}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function printReport() {
+  if (!lastReport) return toast("Önce rapor alın.");
+  window.print();
+}
+function toggleFS() {
+  const el = document.documentElement;
+  const active = document.fullscreenElement || document.webkitFullscreenElement;
+  if (active) {
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  } else {
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => toast("Tam ekran açılamadı."));
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else toast("Bu tarayıcıda tam ekran desteklenmiyor. Ana ekrana ekleyip uygulama gibi açabilirsiniz.");
+  }
+}
+function syncFSBtn() {
+  const b = $("btnFS");
+  if (!b) return;
+  const active = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  b.textContent = active ? "⛶✓" : "⛶";
+  b.title = active ? "Tam ekrandan çık" : "Tam ekran";
+}
+document.addEventListener("fullscreenchange", syncFSBtn);
+document.addEventListener("webkitfullscreenchange", syncFSBtn);
+// PWA: service worker kaydı (kurulabilirlik için)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+// sayfa açılışında oturum varsa panele dön
+renderAuth();
+if (session) {
+  if (session.role === "teacher" && $("teacherName")) $("teacherName").value = session.teacherName || "";
+  openDash();
+} else if ((location.hash || "") === "#/rapor") {
+  show("v-join-admin");
+  toast("Rapor için önce sorumlu girişi yapın.");
+}
+</script>
+</body>
+</html>

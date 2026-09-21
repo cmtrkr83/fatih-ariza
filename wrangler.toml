@@ -1,0 +1,13 @@
+name = "fatih-ariza"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fatih-ariza-db"
+database_id = "95bb2c28-6c70-4650-946c-f6dbf3bf8a65"

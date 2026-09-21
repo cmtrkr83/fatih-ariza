@@ -1,0 +1,16 @@
+{
+  "name": "fatih-ariza",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create fatih-ariza-db",
+    "db:migrate": "wrangler d1 execute fatih-ariza-db --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0",
+    "@cloudflare/workers-types": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
